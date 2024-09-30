@@ -10,12 +10,19 @@ use RuntimeException;
  */
 class Loader
 {
+    /**
+     * @param TemplateManager
+     */
+    protected $templateManager;
+
     public function __construct(
         /**
          * TemplateManager from the PKP application
          * (OJS, OMP, or OJS)
+         *
+         * @param TemplateManager
          */
-        protected TemplateManager $templateManager,
+        $templateManager,
 
         /**
          * Absolute path to vite's manifest.json file
@@ -40,7 +47,7 @@ class Loader
          */
         public bool $devMode = false
     ) {
-        // empty
+        $this->templateManager = $templateManager;
     }
 
     /**
@@ -60,9 +67,9 @@ class Loader
 
     protected function loadDev(array $entryPoints): void
     {
-        $this->templateManager->addJavaScript('vite', "{$this->basePath}@vite/client");
+        $this->templateManager->addJavaScript('vite', "{$this->basePath}@vite/client", ['type' => 'module']);
         foreach ($entryPoints as $entryPoint) {
-            $this->templateManager->addJavaScript('vite-' . $entryPoint, "{$this->basePath}{$entry}"),
+            $this->templateManager->addJavaScript('vite-' . $entryPoint, "{$this->basePath}{$entryPoint}", ['type' => 'module']);
         }
     }
 
@@ -74,7 +81,7 @@ class Loader
                 $this->templateManager->addHeader("vite-{$file->file}-preload", $this->getPreload($file->file, true));
             }
             if ($file->isEntry) {
-                $this->templateManager-addScript("vite-{$file->file}", "{$this->basePath}{$file->file}");
+                $this->templateManager->addJavaScript("vite-{$file->file}", "{$this->basePath}{$file->file}", ['type' => 'module']);
             }
             foreach ($file->css as $css) {
                 $this->templateManager->addStyleSheet("vite-{$file->file}-{$css}", "{$this->basePath}{$css}");
@@ -82,7 +89,7 @@ class Loader
         }
     }
 
-    protected function getFiles(): void
+    protected function getFiles(): array
     {
         if (!is_readable($this->manifestPath)) {
             throw new RuntimeException(
@@ -101,7 +108,7 @@ class Loader
     /**
      * Get preload tag
      */
-    protected function getPreload(string $url, bool $module = false): void
+    protected function getPreload(string $url, bool $module = false): string
     {
         $rel = $module ? 'modulepreload' : 'preload';
         return "<link rel=\"{$rel}\" href=\"{$this->basePath}{$url}\" />";
