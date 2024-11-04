@@ -4,6 +4,7 @@ namespace NateWr\vite;
 
 use NateWr\vite\interfaces\TemplateManager;
 use RuntimeException;
+use ThemePlugin;
 
 /**
  * Loads Vite files
@@ -45,7 +46,12 @@ class Loader
          * Whether to serve built files or load from vite's
          * HMR server.
          */
-        public bool $devMode = false
+        public bool $devMode = false,
+
+        /**
+         * Register assets as part of a theme
+         */
+        public ?ThemePlugin $theme = null,
     ) {
         $this->templateManager = $templateManager;
     }
@@ -67,9 +73,9 @@ class Loader
 
     protected function loadDev(array $entryPoints): void
     {
-        $this->templateManager->addJavaScript('vite', "{$this->basePath}@vite/client", ['type' => 'module']);
+        $this->loadScript('vite', "{$this->basePath}@vite/client", ['type' => 'module']);
         foreach ($entryPoints as $entryPoint) {
-            $this->templateManager->addJavaScript('vite-' . $entryPoint, "{$this->basePath}{$entryPoint}", ['type' => 'module']);
+            $this->loadScript('vite-' . $entryPoint, "{$this->basePath}{$entryPoint}", ['type' => 'module']);
         }
     }
 
@@ -81,10 +87,10 @@ class Loader
                 $this->templateManager->addHeader("vite-{$file->file}-preload", $this->getPreload($file->file, true));
             }
             if ($file->isEntry) {
-                $this->templateManager->addJavaScript("vite-{$file->file}", "{$this->basePath}{$file->file}", ['type' => 'module']);
+                $this->loadScript("vite-{$file->file}", "{$this->basePath}{$file->file}", ['type' => 'module']);
             }
             foreach ($file->css as $css) {
-                $this->templateManager->addStyleSheet("vite-{$file->file}-{$css}", "{$this->basePath}{$css}");
+                $this->loadStyle("vite-{$file->file}-{$css}", "{$this->basePath}{$css}");
             }
         }
     }
@@ -112,5 +118,29 @@ class Loader
     {
         $rel = $module ? 'modulepreload' : 'preload';
         return "<link rel=\"{$rel}\" href=\"{$this->basePath}{$url}\" />";
+    }
+
+    /**
+     * Load script asset
+     */
+    protected function loadScript(string $name, string $path, array $args): void
+    {
+        if ($this->theme) {
+            $this->theme->addScript($name, $path, $args);
+        } else {
+            $this->templateManager->addJavaScript($name, $path, $args);
+        }
+    }
+
+    /**
+     * Load style asset
+     */
+    protected function loadStyle(string $name, string $path, array $args = []): void
+    {
+        if ($this->theme) {
+            $this->theme->addStyle($name, $path, $args);
+        } else {
+            $this->templateManager->addStyleSheet($name, $path, $args);
+        }
     }
 }
