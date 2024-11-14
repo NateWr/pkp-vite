@@ -71,7 +71,7 @@ class ExampleTheme extends ThemePlugin
              * This must match the `configFile` param to pkpThemePlugin
              * in the vite.config.js file.
              */
-            serverPath: dirname(__FILE__) . '/.vite.server.json']),
+            serverPath: dirname(__FILE__) . '/.vite.server.json'),
 
             /**
              * Base URL to vite build directory
@@ -80,7 +80,7 @@ class ExampleTheme extends ThemePlugin
              * you want to change it, it must be changed in your
              * vite.config.js file.
              */
-            buildUrl: join('/', [$this->getPluginUrl(), 'dist/']),
+            buildUrl: $this->getPluginUrl() . '/dist',
 
             /**
              * Pass the TemplateManager from OJS/OMP/OPS. This is used to
