@@ -2,7 +2,7 @@
   "name": "NateWr/pkp-vite",
   "type": "library",
   "license": "GPL3",
-  "description": "Backend setup to use Vite with custom themes for PKP software (OJS, OMP, OPS).",
+  "description": "Vite integration for themes built for PKP's software (OJS, OMP, and OPS).",
   "autoload": {
       "psr-4": {
           "NateWr\\vite\\": "src/"
