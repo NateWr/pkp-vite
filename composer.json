@@ -1,7 +1,7 @@
 {
   "name": "natewr/pkp-vite",
   "type": "library",
-  "license": "GPL3",
+  "license": "GPL-3.0-or-later",
   "description": "Vite integration for themes built for PKP's software (OJS, OMP, and OPS).",
   "autoload": {
       "psr-4": {
