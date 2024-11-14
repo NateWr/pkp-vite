@@ -2,28 +2,33 @@
 
 namespace NateWr\vite;
 
-use NateWr\vite\interfaces\TemplateManager;
 use RuntimeException;
+use TemplateManager;
 use ThemePlugin;
 
 /**
- * Loads Vite files
+ * Initialize Vite integration
+ *
+ * If Vite is in dev mode, it registers assets pointing
+ * to Vite's server. Otherwise, it reads the assets from
+ * the manifest.json file and lo.
+ *
+ * All assets are registered through the PKP's TemplateManager
+ * class, or a ThemePlugin class if passed in the constructor.
  */
 class Loader
 {
-    /**
-     * @param TemplateManager
-     */
-    protected $templateManager;
+    public const DEFAULT_VITE_SERVER_URL = 'http://localhost:5173/';
+
+    public bool $devMode;
+    protected string $baseUrl;
 
     public function __construct(
         /**
          * TemplateManager from the PKP application
          * (OJS, OMP, or OJS)
-         *
-         * @param TemplateManager
          */
-        $templateManager,
+        protected TemplateManager $templateManager,
 
         /**
          * Absolute path to vite's manifest.json file
@@ -31,33 +36,71 @@ class Loader
         protected string $manifestPath,
 
         /**
-         * Base path to vite files
-         *
-         * In dev mode, this should be the local or network
-         * address to the vite server.
-         *
-         * In production, this should be the relative path to the
-         * built vite files within the OJS, OMP or OPS installation.
-         * Typically, this is `/plugins/themes/<plugin>/dist/...`.
+         * Base URL to vite build directory
          */
-        protected string $basePath,
+        protected string $buildUrl,
 
         /**
-         * Whether to serve built files or load from vite's
-         * HMR server.
+         * Absolute path to vite server configuration
+         *
+         * Usually a .vite.server.json file in the root directory
+         * of the plugin.
          */
-        public bool $devMode = false,
+        public string $serverPath,
 
         /**
          * Register assets as part of a theme
+         *
+         * By default, assets are registered using the PKPTemplateManager
+         * methods. If a ThemePlugin is provided, the assets will be
+         * registered using the ThemePlugin methods.
+         *
+         * This makes it easier to work with child themes.
          */
         public ?ThemePlugin $theme = null,
     ) {
-        $this->templateManager = $templateManager;
+        $this->buildUrl = rtrim($buildUrl, '/') . '/';
+        $this->setMode();
     }
 
     /**
-     * Load Vite assets for one or more entry points
+     * Sets devMode and baseUrl
+     *
+     * In dev mode, this returns the local or network
+     * address to the vite server.
+     *
+     * In production, this returns the relative path to the
+     * vite's build directory.
+     *
+     * Typically, this is `/plugins/themes/<plugin>/dist`.
+     */
+    protected function setMode(): void
+    {
+        if (!file_exists($this->serverPath)) {
+            $this->devMode = false;
+            $this->baseUrl = $this->buildUrl;
+            return;
+        }
+
+        $config = json_decode(file_get_contents($this->serverPath), true);
+
+        if (!$config) {
+            $this->devMode = false;
+            $this->baseUrl = $this->buildUrl;
+            return;
+        }
+
+        $this->devMode = true;
+
+        if (empty($config['network'])) {
+            $this->baseUrl = isset($config['local']) ? $config['local'][0] : self::DEFAULT_VITE_SERVER_URL;
+        }
+
+        $this->baseUrl = $config['network'][0];
+    }
+
+    /**
+     * Load vite assets for one or more entry points
      *
      * Adds the scripts, styles, and other assets to the template
      * using the TemplateManager class from OJS, OMP or OPS.
@@ -71,14 +114,20 @@ class Loader
         }
     }
 
+    /**
+     * Load assets for vite dev server
+     */
     protected function loadDev(array $entryPoints): void
     {
-        $this->loadScript('vite', "{$this->basePath}@vite/client", ['type' => 'module']);
+        $this->loadScript('vite', "{$this->baseUrl}@vite/client", ['type' => 'module']);
         foreach ($entryPoints as $entryPoint) {
-            $this->loadScript('vite-' . $entryPoint, "{$this->basePath}{$entryPoint}", ['type' => 'module']);
+            $this->loadScript('vite-' . $entryPoint, "{$this->baseUrl}{$entryPoint}", ['type' => 'module']);
         }
     }
 
+    /**
+     * Load built assets from vite manifest
+     */
     protected function loadProd(): void
     {
         $files = $this->getFiles();
@@ -87,10 +136,10 @@ class Loader
                 $this->templateManager->addHeader("vite-{$file->file}-preload", $this->getPreload($file->file, true));
             }
             if ($file->isEntry) {
-                $this->loadScript("vite-{$file->file}", "{$this->basePath}{$file->file}", ['type' => 'module']);
+                $this->loadScript("vite-{$file->file}", "{$this->baseUrl}{$file->file}", ['type' => 'module']);
             }
             foreach ($file->css as $css) {
-                $this->loadStyle("vite-{$file->file}-{$css}", "{$this->basePath}{$css}");
+                $this->loadStyle("vite-{$file->file}-{$css}", "{$this->baseUrl}{$css}");
             }
         }
     }
@@ -117,7 +166,7 @@ class Loader
     protected function getPreload(string $url, bool $module = false): string
     {
         $rel = $module ? 'modulepreload' : 'preload';
-        return "<link rel=\"{$rel}\" href=\"{$this->basePath}{$url}\" />";
+        return "<link rel=\"{$rel}\" href=\"{$this->baseUrl}{$url}\" />";
     }
 
     /**
