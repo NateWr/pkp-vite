@@ -175,7 +175,7 @@ class Loader
     protected function loadScript(string $name, string $path, array $args): void
     {
         if ($this->theme) {
-            $this->theme->addScript($name, $path, $args);
+            $this->theme->addScript($name, $path, $this->withBaseUrl($args));
         } else {
             $this->templateManager->addJavaScript($name, $path, $args);
         }
@@ -187,9 +187,21 @@ class Loader
     protected function loadStyle(string $name, string $path, array $args = []): void
     {
         if ($this->theme) {
-            $this->theme->addStyle($name, $path, $args);
+            $this->theme->addStyle($name, $path, $this->withBaseUrl($args));
         } else {
             $this->templateManager->addStyleSheet($name, $path, $args);
         }
+    }
+
+    /**
+     * Add empty baseUrl to script and style arguments
+     *
+     * Without this argument, assets registered by a ThemePlugin
+     * will preprend the plugin's base URL.
+     */
+    protected function withBaseUrl(array $args): array
+    {
+        $args['baseUrl'] = '';
+        return $args;
     }
 }
